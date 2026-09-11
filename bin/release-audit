@@ -1,0 +1,152 @@
+#!/usr/bin/env ruby
+# release-audit
+
+# 20260911
+# 0.0.0
+
+gem 'switches.rb'
+
+require 'json'
+require 'switches.rb'
+
+DEFAULT_BRANCH = 'master'
+DEFAULT_CONFIG_FILEPATH = File.join('~', '.config', 'release-audit', 'config.json')
+DEFAULT_ROOT = File.expand_path('.')
+VERSION_SUBJECT = /\A(\d+\.\d+\.\d+):/
+VERSION_TAG = /\Av(\d+\.\d+\.\d+)\z/
+
+def usage
+  puts "release-audit - Report which repositories have a release left half done."
+  puts
+  puts "Usage: release-audit [options]"
+  puts
+  puts "Options:"
+  puts "  -c, --config FILE   Where the configuration is (default: #{DEFAULT_CONFIG_FILEPATH})"
+  puts "  -r, --root DIR      Where the repositories are (default: the configured one, else .)"
+  puts "  -B, --branch NAME   The branch each repository releases from (default: #{DEFAULT_BRANCH})"
+  puts "  -a, --all           List every repository, not only those with something outstanding"
+  puts "  -h, --help          Show this help"
+  puts
+  puts "Three columns, none of which touches the network: whether the tree is"
+  puts "committed, which versions the repository claims and has tagged, and whether"
+  puts "the branch is pushed.  Whether a tag is on the remote and whether a version"
+  puts "is published are the two remaining columns and are not asked here yet."
+  puts
+  puts "Exits 1 where anything was found, so it can gate a release."
+end
+
+def switches
+  @switches ||= Switches.new do |s|
+    s.optional(:c, :config){'Where the configuration is'}
+    s.optional(:r, :root){'Where the repositories are'}
+    s.optional(:B, :branch, default: DEFAULT_BRANCH){'The branch each repository releases from'}
+    s.boolean(:a, :all){'List every repository'}
+    s.perform(:h, :help?) do
+      usage
+      exit
+    end
+  end
+end
+
+def config_filepath
+  File.expand_path(switches.config || DEFAULT_CONFIG_FILEPATH)
+end
+
+# Absent is legitimate: run from a directory of repositories, the default root is
+# already right and there is nothing to configure.
+def config
+  @config ||= (
+    if File.exist?(config_filepath)
+      JSON.parse(File.read(config_filepath), symbolize_names: true)
+    else
+      {}
+    end
+  )
+end
+
+def root
+  @root ||= File.expand_path(switches.root || config[:root] || DEFAULT_ROOT)
+end
+
+def git(path, *arguments)
+  `git -C #{path.inspect} #{arguments.join(' ')} 2>/dev/null`
+end
+
+# A copy carries its original's history and would be reported as a second
+# repository claiming the same versions, which is no more true of it than of any
+# other stale checkout.
+def repository_paths
+  @repository_paths ||= Dir[File.join(root, '*')].sort.select do |path|
+    File.directory?(File.join(path, '.git')) && File.basename(path) !~ / copy\b/
+  end
+end
+
+def uncommitted(path)
+  git(path, 'status', '--porcelain').lines.size
+end
+
+def tagged_versions(path)
+  git(path, 'tag', '--list').lines.collect{|line| line.strip[VERSION_TAG, 1]}.compact
+end
+
+# What the repository says of itself, which is the commit subjects.  The changelog
+# says it too and in three different formats, so it is left to a later revision.
+def claimed_versions(path)
+  git(path, 'log', '--format=%s').lines.collect{|line| line.strip[VERSION_SUBJECT, 1]}.compact.uniq
+end
+
+def untagged_versions(path)
+  claimed_versions(path) - tagged_versions(path)
+end
+
+def latest_version(path)
+  (tagged_versions(path) + claimed_versions(path)).max_by{|version| Gem::Version.new(version)}
+end
+
+def upstream?(path)
+  !git(path, 'rev-parse', '--abbrev-ref', '@{u}').strip.empty?
+end
+
+def unpushed(path)
+  return nil unless upstream?(path)
+  git(path, 'rev-list', '--count', '@{u}..').strip.to_i
+end
+
+def findings(path)
+  findings = []
+  count = uncommitted(path)
+  findings << "#{count} uncommitted" if count > 0
+  untagged = untagged_versions(path)
+  findings << "#{untagged.size} untagged: #{untagged.join(', ')}" unless untagged.empty?
+  ahead = unpushed(path)
+  if ahead.nil?
+    findings << 'no upstream'
+  elsif ahead > 0
+    findings << "#{ahead} unpushed"
+  end
+  findings
+end
+
+def report(path, findings)
+  puts "%-24s %-12s %-10s %s" % [
+    File.basename(path),
+    uncommitted(path) > 0 ? "#{uncommitted(path)} files" : 'clean',
+    latest_version(path) || '--',
+    findings.empty? ? '' : "<-- #{findings.join('; ')}",
+  ]
+end
+
+def main
+  switches
+  outstanding = 0
+  repository_paths.each do |path|
+    found = findings(path)
+    outstanding += 1 unless found.empty?
+    report(path, found) if switches.all? || !found.empty?
+  end
+  puts
+  puts "#{outstanding} of #{repository_paths.size} repositories have a release left half done."
+  exit(outstanding.zero? ? 0 : 1)
+end
+
+main
