@@ -2,6 +2,14 @@
 
 ## 20260911
 
+0.1.0: Audit only the repositories which are ours, and say less about the ones which have never been tagged.
+
+1. ~ bin/release-audit: + ours?(), which takes the root commit author as the proxy section 4 of missing-tools-note.md settles on. A fork cannot be released from here, so every column is meaningless for one: the first run reported homebrew-core with 249 uncommitted files, and rails, sorbet, crystal, direnv and two dotfiles repositories beside it. 171 repositories fall to 86 and 61 findings to 48.
+2. ~ bin/release-audit: + copy?(), which now reads .bak, .old and .orig as well as the Finder's " copy". changelogger.bak and imap.bak were each reported as a repository of their own.
+3. + bin/release-audit: listed(), naming the first six untagged versions and counting the rest. dsv has never been tagged and claims 77 versions, which filled a line and told nobody anything.
+4. ~ bin/release-audit: + committed(), so that one file does not read as `1 files`.
+5. ~ bin/release-audit: /0.0.0/0.1.0/
+
 0.0.0: Report which repositories beneath a root have a release left half done.
 
 1. + bin/release-audit: a walk for .git directories beneath a root, and per repository three columns which need no network — whether the tree is committed, which versions it claims and has tagged, and whether the branch is pushed. Section 4 of missing-tools-note.md describes five; the two which ask the outside world, whether the tag on the remote is the tag here and whether the version is published, are not asked yet.
