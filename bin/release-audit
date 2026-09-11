@@ -2,7 +2,7 @@
 # release-audit
 
 # 20260911
-# 0.0.0
+# 0.1.0
 
 gem 'switches.rb'
 
@@ -12,6 +12,9 @@ require 'switches.rb'
 DEFAULT_BRANCH = 'master'
 DEFAULT_CONFIG_FILEPATH = File.join('~', '.config', 'release-audit', 'config.json')
 DEFAULT_ROOT = File.expand_path('.')
+COPY_SUFFIXES = %w{.bak .old .orig}
+LISTED_VERSIONS = 6
+OWNER = 'thoran'
 VERSION_SUBJECT = /\A(\d+\.\d+\.\d+):/
 VERSION_TAG = /\Av(\d+\.\d+\.\d+)\z/
 
@@ -74,10 +77,27 @@ end
 
 # A copy carries its original's history and would be reported as a second
 # repository claiming the same versions, which is no more true of it than of any
-# other stale checkout.
+# other stale checkout.  ' copy' is what the Finder appends and '.bak' is what a
+# hand appends, and both name the same thing.
+def copy?(path)
+  File.basename(path) =~ / copy\b/ || File.basename(path).end_with?(*COPY_SUFFIXES)
+end
+
+# A fork cannot be released from here, so every column is meaningless for one and
+# the noise is considerable: homebrew-core alone reported 249 uncommitted files on
+# the first run.  The root commit's author is the proxy used where gh is not to
+# hand, and it is a proxy: a
+# repository whose history was grafted reads as ours, and one begun before the
+# convention of a first commit of one's own reads as somebody else's.
+def ours?(path)
+  root_commit = git(path, 'rev-list', '--max-parents=0', 'HEAD').lines.last.to_s.strip
+  return false if root_commit.empty?
+  git(path, 'log', '-1', '--format=%ae', root_commit).include?(OWNER)
+end
+
 def repository_paths
   @repository_paths ||= Dir[File.join(root, '*')].sort.select do |path|
-    File.directory?(File.join(path, '.git')) && File.basename(path) !~ / copy\b/
+    File.directory?(File.join(path, '.git')) && !copy?(path) && ours?(path)
   end
 end
 
@@ -112,12 +132,19 @@ def unpushed(path)
   git(path, 'rev-list', '--count', '@{u}..').strip.to_i
 end
 
+# Naming them all is unreadable where a repository has never been tagged at all:
+# dsv claims 77 versions and shellac 21.
+def listed(versions)
+  return versions.join(', ') if versions.size <= LISTED_VERSIONS
+  versions.first(LISTED_VERSIONS).join(', ') + ", and #{versions.size - LISTED_VERSIONS} more"
+end
+
 def findings(path)
   findings = []
   count = uncommitted(path)
   findings << "#{count} uncommitted" if count > 0
   untagged = untagged_versions(path)
-  findings << "#{untagged.size} untagged: #{untagged.join(', ')}" unless untagged.empty?
+  findings << "#{untagged.size} untagged: #{listed(untagged)}" unless untagged.empty?
   ahead = unpushed(path)
   if ahead.nil?
     findings << 'no upstream'
@@ -127,10 +154,16 @@ def findings(path)
   findings
 end
 
+def committed(path)
+  count = uncommitted(path)
+  return 'clean' if count.zero?
+  "#{count} #{count == 1 ? 'file' : 'files'}"
+end
+
 def report(path, findings)
   puts "%-24s %-12s %-10s %s" % [
     File.basename(path),
-    uncommitted(path) > 0 ? "#{uncommitted(path)} files" : 'clean',
+    committed(path),
     latest_version(path) || '--',
     findings.empty? ? '' : "<-- #{findings.join('; ')}",
   ]
