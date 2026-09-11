@@ -1,0 +1,10 @@
+# CHANGELOG
+
+## 20260911
+
+0.0.0: Report which repositories beneath a root have a release left half done.
+
+1. + bin/release-audit: a walk for .git directories beneath a root, and per repository three columns which need no network — whether the tree is committed, which versions it claims and has tagged, and whether the branch is pushed. Section 4 of missing-tools-note.md describes five; the two which ask the outside world, whether the tag on the remote is the tag here and whether the version is published, are not asked yet.
+2. + bin/release-audit: the versions a repository claims are taken from its commit subjects, in the form `1.2.3: summary`. The changelog says it too, in three different filenames and several formats, so it is left for later.
+3. + bin/release-audit: the root comes from --root, else the configured one, else the current directory, as tap-audit takes its two directories.
+4. + README.md, LICENSE, .gitignore, CHANGELOG.
