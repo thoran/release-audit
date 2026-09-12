@@ -2,6 +2,11 @@
 
 ## 20260911
 
+0.1.2: ~ the name column: fitted to the longest name reported rather than fixed at 24.
+
+1. + bin/release-audit: name_width() and row(), the width taken from the names actually reported and floored at MINIMUM_NAME_WIDTH so that a short run is not cramped. ROW is gone, a constant being the wrong shape for something computed per run.
+2. ~ bin/release-audit: /0.1.1/0.1.2/
+
 0.1.1: + column headings, the repository column headed only where it is asked for.
 
 1. + bin/release-audit: headings(), and ROW, which the headings and the rows now share so that they cannot drift apart. A run over the estate reports 48 repositories, and reading a column of bare values with nothing saying what they are is what made that overwhelming rather than informative.

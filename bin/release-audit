@@ -2,7 +2,7 @@
 # release-audit
 
 # 20260911
-# 0.1.1
+# 0.1.2
 
 gem 'switches.rb'
 
@@ -15,7 +15,7 @@ DEFAULT_ROOT = File.expand_path('.')
 COPY_SUFFIXES = %w{.bak .old .orig}
 LISTED_VERSIONS = 6
 OWNER = 'thoran'
-ROW = "%-24s %-12s %-10s %s"
+MINIMUM_NAME_WIDTH = 24
 VERSION_SUBJECT = /\A(\d+\.\d+\.\d+):/
 VERSION_TAG = /\Av(\d+\.\d+\.\d+)\z/
 
@@ -163,15 +163,26 @@ def committed(path)
   "#{count} #{count == 1 ? 'file' : 'files'}"
 end
 
-# The name column is headed only where it is asked for: a column of repository
-# names says what it is, and a heading over it is one more line to read past.
-def headings
-  puts ROW % [switches.name? ? 'repository' : '', 'committed', 'version', 'outstanding']
-  puts ROW % ['-' * (switches.name? ? 10 : 0), '-' * 9, '-' * 7, '-' * 11]
+# Fitted to the longest name reported rather than fixed.  Truncating would cost
+# the one column which identifies the row, and a name wider than a fixed column
+# pushes every column after it out of true: whitehorse-gutter-cleaning is 26.
+def name_width(paths)
+  [paths.collect{|path| File.basename(path).size}.max.to_i, MINIMUM_NAME_WIDTH].max
 end
 
-def report(path, findings)
-  puts ROW % [
+def row(width)
+  "%-#{width}s %-12s %-10s %s"
+end
+
+# The name column is headed only where it is asked for: a column of repository
+# names says what it is, and a heading over it is one more line to read past.
+def headings(width)
+  puts row(width) % [switches.name? ? 'repository' : '', 'committed', 'version', 'outstanding']
+  puts row(width) % ['-' * (switches.name? ? 10 : 0), '-' * 9, '-' * 7, '-' * 11]
+end
+
+def report(path, findings, width)
+  puts row(width) % [
     File.basename(path),
     committed(path),
     latest_version(path) || '--',
@@ -188,8 +199,9 @@ def main
     outstanding += 1 unless found.empty?
     reported << [path, found] if switches.all? || !found.empty?
   end
-  headings unless reported.empty?
-  reported.each{|path, found| report(path, found)}
+  width = name_width(reported.collect(&:first))
+  headings(width) unless reported.empty?
+  reported.each{|path, found| report(path, found, width)}
   puts
   puts "#{outstanding} of #{repository_paths.size} repositories have a release left half done."
   exit(outstanding.zero? ? 0 : 1)
