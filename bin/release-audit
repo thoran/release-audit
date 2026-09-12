@@ -2,7 +2,7 @@
 # release-audit
 
 # 20260911
-# 0.1.0
+# 0.1.1
 
 gem 'switches.rb'
 
@@ -15,6 +15,7 @@ DEFAULT_ROOT = File.expand_path('.')
 COPY_SUFFIXES = %w{.bak .old .orig}
 LISTED_VERSIONS = 6
 OWNER = 'thoran'
+ROW = "%-24s %-12s %-10s %s"
 VERSION_SUBJECT = /\A(\d+\.\d+\.\d+):/
 VERSION_TAG = /\Av(\d+\.\d+\.\d+)\z/
 
@@ -28,6 +29,7 @@ def usage
   puts "  -r, --root DIR      Where the repositories are (default: the configured one, else .)"
   puts "  -B, --branch NAME   The branch each repository releases from (default: #{DEFAULT_BRANCH})"
   puts "  -a, --all           List every repository, not only those with something outstanding"
+  puts "  -n, --name          Head the repository column, which is otherwise left unheaded"
   puts "  -h, --help          Show this help"
   puts
   puts "Three columns, none of which touches the network: whether the tree is"
@@ -44,6 +46,7 @@ def switches
     s.optional(:r, :root){'Where the repositories are'}
     s.optional(:B, :branch, default: DEFAULT_BRANCH){'The branch each repository releases from'}
     s.boolean(:a, :all){'List every repository'}
+    s.boolean(:n, :name){'Head the repository column'}
     s.perform(:h, :help?) do
       usage
       exit
@@ -160,23 +163,33 @@ def committed(path)
   "#{count} #{count == 1 ? 'file' : 'files'}"
 end
 
+# The name column is headed only where it is asked for: a column of repository
+# names says what it is, and a heading over it is one more line to read past.
+def headings
+  puts ROW % [switches.name? ? 'repository' : '', 'committed', 'version', 'outstanding']
+  puts ROW % ['-' * (switches.name? ? 10 : 0), '-' * 9, '-' * 7, '-' * 11]
+end
+
 def report(path, findings)
-  puts "%-24s %-12s %-10s %s" % [
+  puts ROW % [
     File.basename(path),
     committed(path),
     latest_version(path) || '--',
-    findings.empty? ? '' : "<-- #{findings.join('; ')}",
+    findings.empty? ? '' : findings.join('; '),
   ]
 end
 
 def main
   switches
   outstanding = 0
+  reported = []
   repository_paths.each do |path|
     found = findings(path)
     outstanding += 1 unless found.empty?
-    report(path, found) if switches.all? || !found.empty?
+    reported << [path, found] if switches.all? || !found.empty?
   end
+  headings unless reported.empty?
+  reported.each{|path, found| report(path, found)}
   puts
   puts "#{outstanding} of #{repository_paths.size} repositories have a release left half done."
   exit(outstanding.zero? ? 0 : 1)
