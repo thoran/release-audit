@@ -2,7 +2,7 @@
 # release-audit
 
 # 20260911
-# 0.1.2
+# 0.2.0
 
 gem 'switches.rb'
 
@@ -118,10 +118,6 @@ def claimed_versions(path)
   git(path, 'log', '--format=%s').lines.collect{|line| line.strip[VERSION_SUBJECT, 1]}.compact.uniq
 end
 
-def untagged_versions(path)
-  claimed_versions(path) - tagged_versions(path)
-end
-
 def latest_version(path)
   (tagged_versions(path) + claimed_versions(path)).max_by{|version| Gem::Version.new(version)}
 end
@@ -142,12 +138,31 @@ def listed(versions)
   versions.first(LISTED_VERSIONS).join(', ') + ", and #{versions.size - LISTED_VERSIONS} more"
 end
 
+# Three states, and only the second is a release left half done.  A repository
+# which has never been tagged says something about its whole history rather than
+# about its last release, and saying so once is worth more than naming 77
+# versions: dsv claims that many and shellac 21.  A gap behind a tagged latest is
+# backfill, which thoran does years after the fact by design.
+def untagged_findings(path)
+  claimed = claimed_versions(path)
+  return [] if claimed.empty?
+  tagged = tagged_versions(path)
+  return ["never tagged, #{claimed.size} #{claimed.size == 1 ? 'version' : 'versions'} claimed"] if tagged.empty?
+  untagged = claimed - tagged
+  return [] if untagged.empty?
+  latest = claimed.max_by{|version| Gem::Version.new(version)}
+  findings = []
+  findings << "#{latest} untagged" if untagged.include?(latest)
+  earlier = untagged - [latest]
+  findings << "#{earlier.size} earlier untagged: #{listed(earlier)}" unless earlier.empty?
+  findings
+end
+
 def findings(path)
   findings = []
   count = uncommitted(path)
   findings << "#{count} uncommitted" if count > 0
-  untagged = untagged_versions(path)
-  findings << "#{untagged.size} untagged: #{listed(untagged)}" unless untagged.empty?
+  findings.concat(untagged_findings(path))
   ahead = unpushed(path)
   if ahead.nil?
     findings << 'no upstream'
