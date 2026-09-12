@@ -2,7 +2,7 @@
 # release-audit
 
 # 20260911
-# 0.2.0
+# 0.2.1
 
 gem 'switches.rb'
 
@@ -13,11 +13,14 @@ DEFAULT_BRANCH = 'master'
 DEFAULT_CONFIG_FILEPATH = File.join('~', '.config', 'release-audit', 'config.json')
 DEFAULT_ROOT = File.expand_path('.')
 COPY_SUFFIXES = %w{.bak .old .orig}
+CURRENT = :current
 LISTED_VERSIONS = 6
-OWNER = 'thoran'
 MINIMUM_NAME_WIDTH = 24
+OLDER = :older
+OWNER = 'thoran'
 VERSION_SUBJECT = /\A(\d+\.\d+\.\d+):/
 VERSION_TAG = /\Av(\d+\.\d+\.\d+)\z/
+WORKING = :working
 
 def usage
   puts "release-audit - Report which repositories have a release left half done."
@@ -147,29 +150,43 @@ def untagged_findings(path)
   claimed = claimed_versions(path)
   return [] if claimed.empty?
   tagged = tagged_versions(path)
-  return ["never tagged, #{claimed.size} #{claimed.size == 1 ? 'version' : 'versions'} claimed"] if tagged.empty?
+  return [["never tagged, #{claimed.size} #{claimed.size == 1 ? 'version' : 'versions'} claimed", OLDER]] if tagged.empty?
   untagged = claimed - tagged
   return [] if untagged.empty?
   latest = claimed.max_by{|version| Gem::Version.new(version)}
   findings = []
-  findings << "#{latest} untagged" if untagged.include?(latest)
+  findings << ["#{latest} untagged", CURRENT] if untagged.include?(latest)
   earlier = untagged - [latest]
-  findings << "#{earlier.size} earlier untagged: #{listed(earlier)}" unless earlier.empty?
+  findings << ["#{earlier.size} earlier untagged: #{listed(earlier)}", OLDER] unless earlier.empty?
   findings
 end
 
+# Three standings, because the counts conflate otherwise.  CURRENT is a release
+# which stopped between being made and being delivered: a latest version with no
+# tag, or commits the remote has not seen.  WORKING is a tree with changes in it,
+# which is work rather than a release, though it makes every later column
+# provisional and so is worth saying.  OLDER is merely true: a version untagged
+# years ago, or a repository which never had a remote.  Counted as one, 24 of the
+# 37 were WORKING and none at all was a latest version untagged.
 def findings(path)
   findings = []
   count = uncommitted(path)
-  findings << "#{count} uncommitted" if count > 0
+  findings << ["#{count} uncommitted", WORKING] if count > 0
   findings.concat(untagged_findings(path))
   ahead = unpushed(path)
   if ahead.nil?
-    findings << 'no upstream'
+    findings << ['no upstream', OLDER]
   elsif ahead > 0
-    findings << "#{ahead} unpushed"
+    findings << ["#{ahead} unpushed", CURRENT]
   end
   findings
+end
+
+# A repository stands where its gravest finding does.
+def standing(findings)
+  return CURRENT if findings.any?{|_, standing| standing == CURRENT}
+  return WORKING if findings.any?{|_, standing| standing == WORKING}
+  OLDER
 end
 
 def committed(path)
@@ -201,25 +218,37 @@ def report(path, findings, width)
     File.basename(path),
     committed(path),
     latest_version(path) || '--',
-    findings.empty? ? '' : findings.join('; '),
+    findings.collect(&:first).join('; '),
   ]
+end
+
+def summary(counts, total)
+  return puts("No repositories of ours beneath #{root}.") if total.zero?
+  return puts("Nothing outstanding in #{total} #{total == 1 ? 'repository' : 'repositories'}.") if counts.values.sum.zero?
+  clauses = []
+  clauses << "#{counts[CURRENT]} of #{total} #{counts[CURRENT] == 1 ? 'repository has' : 'repositories have'} a release left half done" unless counts[CURRENT].zero?
+  clauses << "#{counts[WORKING]} #{counts[WORKING] == 1 ? 'has' : 'have'} work in progress" unless counts[WORKING].zero?
+  clauses << "#{counts[OLDER]} #{counts[OLDER] == 1 ? 'has' : 'have'} something older outstanding" unless counts[OLDER].zero?
+  clauses[-1] = "and #{clauses[-1]}" if clauses.size > 1
+  puts clauses.join(clauses.size > 2 ? ', ' : ' ') + '.'
 end
 
 def main
   switches
-  outstanding = 0
   reported = []
   repository_paths.each do |path|
     found = findings(path)
-    outstanding += 1 unless found.empty?
-    reported << [path, found] if switches.all? || !found.empty?
+    reported << [path, found] unless found.empty?
   end
-  width = name_width(reported.collect(&:first))
-  headings(width) unless reported.empty?
-  reported.each{|path, found| report(path, found, width)}
+  listable = switches.all? ? repository_paths.collect{|path| [path, findings(path)]} : reported
+  width = name_width(listable.collect(&:first))
+  headings(width) unless listable.empty?
+  listable.each{|path, found| report(path, found, width)}
+  counts = Hash.new(0)
+  reported.each{|_, found| counts[standing(found)] += 1}
   puts
-  puts "#{outstanding} of #{repository_paths.size} repositories have a release left half done."
-  exit(outstanding.zero? ? 0 : 1)
+  summary(counts, repository_paths.size)
+  exit(reported.empty? ? 0 : 1)
 end
 
 main

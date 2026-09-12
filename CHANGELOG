@@ -2,6 +2,15 @@
 
 ## 20260911
 
+0.2.1: ~ the count: three standings, so that work in progress is not counted as a release left half done.
+
+1. + bin/release-audit: standing(), and WORKING beside CURRENT and OLDER. A release which stopped between being made and being delivered is CURRENT — a latest version with no tag, or commits the remote has not seen. A tree with changes in it is WORKING: it is work rather than a release, though it makes every later column provisional and so is still said. Everything else is OLDER.
+2. Counted as one, the line read `48 of 86 repositories have a release left half done`, and 0.2.0's split of the findings left it contradicting the rows beneath it. Of those 48, 24 were there only for a dirty tree and not one was a latest version untagged. It now reads 13, 24 and 11, and the 13 is a number which can be acted upon.
+3. ~ bin/release-audit: summary() builds its clauses rather than stating one sentence, there being three numbers where there was one and any of them possibly zero.
+4. ~ bin/release-audit: a root holding no repositories of ours said `Nothing outstanding in 0 repositories`, which reads as reassurance where nothing was examined. It now says so.
+5. ~ bin/release-audit: the constants are in alphabetical order after the defaults.
+6. ~ bin/release-audit: /0.2.0/0.2.1/
+
 0.2.0: Separate a repository which has never been tagged from one whose latest release is untagged.
 
 1. + bin/release-audit: untagged_findings(), which distinguishes three states where there was one. A repository with no tags at all says `never tagged, 21 versions claimed` and says it once; a latest claimed version with no tag says so by name, which is the only one of the three that is a release left half done; and versions behind a tagged latest say `4 earlier untagged`, which is backfill and is done years after the fact here by design.
