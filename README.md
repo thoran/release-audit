@@ -43,6 +43,18 @@ $ cat ~/.config/release-audit/config.json
 
 Only repositories with something outstanding are listed. `--all` lists every one.
 
+### Options
+
+| | |
+| --- | --- |
+| `-c, --config FILE` | Where the configuration is (default: `~/.config/release-audit/config.json`) |
+| `-r, --root DIR` | Where the repositories are (default: the configured one, else `.`) |
+| `-B, --branch NAME` | The branch each repository releases from (default: `master`) |
+| `-a, --all` | List every repository, not only those with something outstanding |
+| `-n, --name` | Head the repository column, which is otherwise left unheaded |
+| `-o, --origin` | Ask origin whether its tags name what ours do (one call each) |
+| `-h, --help` | Show this help |
+
 ## What it reports
 
 | | |
@@ -55,12 +67,20 @@ Only repositories with something outstanding are listed. `--all` lists every one
 A version the repository claims is one named in a commit subject, in the form
 `1.2.3: summary`.
 
+With `--origin`, two more, which are the only checks here touching the network:
+
+| | |
+| --- | --- |
+| `has not got N of our tags` | a tag cut here which origin does not hold |
+| `names X and this clone's names Y` | a tag both hold, naming different commits |
+
+A push corrects neither on its own: it moves commits and leaves tags where they
+are, and `--follow-tags` carries only what is reachable from what is pushed.
+
 ## What it does not report yet
 
-Two of the five stages need the network and are not asked here: whether the tag
-the repository holds is the tag the remote holds, and whether the version is
-published. Both are described in section 4 of `missing-tools-note.md`, and
-`tap-audit`'s `remote_findings` already does the first for a tap.
+Whether a version is published. That is the one remaining stage, described in
+section 4 of `missing-tools-note.md`.
 
 ## Exit status
 

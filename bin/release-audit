@@ -2,7 +2,7 @@
 # release-audit
 
 # 20260913
-# 0.3.0
+# 0.4.0
 
 gem 'switches.rb'
 
@@ -18,7 +18,6 @@ LISTED_VERSIONS = 6
 MINIMUM_NAME_WIDTH = 24
 OLDER = :older
 OWNER = 'thoran'
-REMOTE_TAGS = 5
 REMOTE_THREADS = 16
 VERSION_SUBJECT = /\A(\d+\.\d+\.\d+):/
 VERSION_TAG = /\Av(\d+\.\d+\.\d+)\z/
@@ -40,8 +39,9 @@ def usage
   puts
   puts "Whether the tree is committed, which versions the repository claims and has"
   puts "tagged, and whether the branch is pushed, none of which touches the network."
-  puts "With --origin, whether the tags origin holds name the commits ours do, which"
-  puts "a push does not correct: a push moves commits and leaves tags where they are."
+  puts "With --origin, whether origin has our tags and whether the ones it has name"
+  puts "the commits ours do.  A push corrects neither on its own: it moves commits and"
+  puts "leaves tags where they are, and --follow-tags carries only what is reachable."
   puts "Whether a version is published is the one remaining column and is not asked."
   puts
   puts "Exits 1 where anything was found, so it can gate a release."
@@ -192,14 +192,26 @@ def remote_tag_findings(path)
   return [] if ours.empty?
   return [['origin: nothing answered, so what a checkout would get is unknown', OLDER]] if remote_refs(path).empty?
   findings = []
-  ours.sort_by{|version| Gem::Version.new(version)}.reverse.first(REMOTE_TAGS).each do |version|
+  absent = []
+  # Every tag, not the newest few: the cost of the check is the one ls-remote
+  # call, which answers with all of them at once, so comparing five or five
+  # hundred costs the same.  listed() keeps the line readable.
+  ours.sort_by{|version| Gem::Version.new(version)}.reverse.each do |version|
     tag = "v#{version}"
-    local = git(path, 'rev-parse', "#{tag}^{commit}").strip
     remote = remote_tag_commit(path, tag)
-    next if remote.nil?
+    if remote.nil?
+      absent << tag
+      next
+    end
+    local = git(path, 'rev-parse', "#{tag}^{commit}").strip
     next if remote == local
     findings << ["origin: #{tag} names #{remote[0, 7]} and this clone's names #{local[0, 7]}", CURRENT]
   end
+  # The other way a tag and a remote disagree, and the one a push does not
+  # correct on its own: --follow-tags carries only what is reachable from the
+  # commits being pushed, so a tag cut onto old history stays here.  eventful had
+  # seven of them after a backfill on 20260913.
+  findings << ["origin: has not got #{absent.size} of our tags: #{listed(absent)}", CURRENT] unless absent.empty?
   findings
 end
 

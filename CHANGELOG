@@ -2,6 +2,14 @@
 
 ## 20260913
 
+0.4.0: + the other way a tag and a remote disagree: origin not having it at all.
+
+1. + bin/release-audit: remote_tag_findings() reports a tag which is here and not on origin. It had asked only whether the tags origin holds name the commits ours do, and skipped a tag origin lacked with `next if remote.nil?`, so the one case a push does not correct on its own went unreported. --follow-tags carries only tags reachable from the commits being pushed, so a tag cut onto old history stays here: eventful had seven after a backfill and the check said nothing.
+2. - bin/release-audit: REMOTE_TAGS, which asked about the newest five versions only. The cost of the check is the single ls-remote call, which answers with every tag at once, so comparing five or five hundred costs the same; the window was guarding against output volume, which listed() already handles. Dropping it found two divergences it had been hiding, one of them a version already published.
+3. ~ bin/release-audit: the usage text, which described one of the two questions --origin now asks.
+4. ~ README.md: + the Options table and the two origin findings. "What it does not report yet" named the remote tag check, which --origin has done since 0.3.0.
+5. ~ bin/release-audit: /0.3.0/0.4.0/
+
 0.3.0: + --origin, which asks whether the tags origin holds name the commits ours do.
 
 1. + bin/release-audit: remote_tag_findings(), read_remote_refs() and remote_tag_commit(). A push moves commits and leaves tags where they are, so a rewritten history leaves the remote naming commits it has abandoned while every local check reads clean. Behind a switch because it is the only thing here which touches the network.
