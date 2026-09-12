@@ -2,6 +2,14 @@
 
 ## 20260911
 
+0.1.1: + column headings, the repository column headed only where it is asked for.
+
+1. + bin/release-audit: headings(), and ROW, which the headings and the rows now share so that they cannot drift apart. A run over the estate reports 48 repositories, and reading a column of bare values with nothing saying what they are is what made that overwhelming rather than informative.
+2. + bin/release-audit: -n, --name, which heads the repository column. It is off by default: a column of repository names says what it is, and the heading is one more line between the reader and the report.
+3. ~ bin/release-audit: - the `<--` before each row's findings, the column now being headed `outstanding`.
+4. ~ bin/release-audit: ROW joins the other constants at the top rather than sitting above report().
+5. ~ bin/release-audit: /0.1.0/0.1.1/
+
 0.1.0: Audit only the repositories which are ours, and say less about the ones which have never been tagged.
 
 1. ~ bin/release-audit: + ours?(), which takes the root commit author as the proxy section 4 of missing-tools-note.md settles on. A fork cannot be released from here, so every column is meaningless for one: the first run reported homebrew-core with 249 uncommitted files, and rails, sorbet, crystal, direnv and two dotfiles repositories beside it. 171 repositories fall to 86 and 61 findings to 48.
