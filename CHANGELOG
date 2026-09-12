@@ -2,6 +2,12 @@
 
 ## 20260911
 
+0.2.0: Separate a repository which has never been tagged from one whose latest release is untagged.
+
+1. + bin/release-audit: untagged_findings(), which distinguishes three states where there was one. A repository with no tags at all says `never tagged, 21 versions claimed` and says it once; a latest claimed version with no tag says so by name, which is the only one of the three that is a release left half done; and versions behind a tagged latest say `4 earlier untagged`, which is backfill and is done years after the fact here by design.
+2. - bin/release-audit: untagged_versions(), which nothing calls now.
+3. ~ bin/release-audit: /0.1.2/0.2.0/
+
 0.1.2: ~ the name column: fitted to the longest name reported rather than fixed at 24.
 
 1. + bin/release-audit: name_width() and row(), the width taken from the names actually reported and floored at MINIMUM_NAME_WIDTH so that a short run is not cramped. ROW is gone, a constant being the wrong shape for something computed per run.
