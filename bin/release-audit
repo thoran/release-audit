@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # release-audit
 
-# 20260911
-# 0.2.1
+# 20260913
+# 0.3.0
 
 gem 'switches.rb'
 
@@ -18,6 +18,8 @@ LISTED_VERSIONS = 6
 MINIMUM_NAME_WIDTH = 24
 OLDER = :older
 OWNER = 'thoran'
+REMOTE_TAGS = 5
+REMOTE_THREADS = 16
 VERSION_SUBJECT = /\A(\d+\.\d+\.\d+):/
 VERSION_TAG = /\Av(\d+\.\d+\.\d+)\z/
 WORKING = :working
@@ -33,12 +35,14 @@ def usage
   puts "  -B, --branch NAME   The branch each repository releases from (default: #{DEFAULT_BRANCH})"
   puts "  -a, --all           List every repository, not only those with something outstanding"
   puts "  -n, --name          Head the repository column, which is otherwise left unheaded"
+  puts "  -o, --origin        Ask origin whether its tags name what ours do (one call each)"
   puts "  -h, --help          Show this help"
   puts
-  puts "Three columns, none of which touches the network: whether the tree is"
-  puts "committed, which versions the repository claims and has tagged, and whether"
-  puts "the branch is pushed.  Whether a tag is on the remote and whether a version"
-  puts "is published are the two remaining columns and are not asked here yet."
+  puts "Whether the tree is committed, which versions the repository claims and has"
+  puts "tagged, and whether the branch is pushed, none of which touches the network."
+  puts "With --origin, whether the tags origin holds name the commits ours do, which"
+  puts "a push does not correct: a push moves commits and leaves tags where they are."
+  puts "Whether a version is published is the one remaining column and is not asked."
   puts
   puts "Exits 1 where anything was found, so it can gate a release."
 end
@@ -50,6 +54,7 @@ def switches
     s.optional(:B, :branch, default: DEFAULT_BRANCH){'The branch each repository releases from'}
     s.boolean(:a, :all){'List every repository'}
     s.boolean(:n, :name){'Head the repository column'}
+    s.boolean(:o, :origin){'Ask origin whether its tags name what ours do'}
     s.perform(:h, :help?) do
       usage
       exit
@@ -129,6 +134,75 @@ def upstream?(path)
   !git(path, 'rev-parse', '--abbrev-ref', '@{u}').strip.empty?
 end
 
+def read_remote_refs(path)
+  git(path, 'ls-remote', '--tags', 'origin').lines.each_with_object({}) do |line, refs|
+    sha, ref = line.split(/\s+/, 2)
+    refs[ref.to_s.strip] = sha if sha && ref
+  end
+end
+
+# One call per repository, this being the only thing here which touches the
+# network, and the reason the check is asked for rather than assumed.  The calls
+# are made together rather than one after another because each is spent waiting:
+# 86 repositories took 5m17s in sequence, against 12.9s for the whole of the rest
+# of the run.  Ruby gives up the lock for the duration of a subprocess, so the
+# waiting overlaps even though the work does not.
+def prefetch_remote_refs(paths)
+  @remote_refs ||= {}
+  return if paths.empty?
+  lock = Mutex.new
+  threads = [REMOTE_THREADS, paths.size].min
+  paths.each_slice((paths.size / threads.to_f).ceil).collect do |slice|
+    Thread.new do
+      slice.each do |path|
+        refs = read_remote_refs(path)
+        lock.synchronize{@remote_refs[path] = refs}
+      end
+    end
+  end.each(&:join)
+end
+
+def remote_refs(path)
+  @remote_refs ||= {}
+  @remote_refs[path] ||= read_remote_refs(path)
+end
+
+def asks_origin?(path)
+  switches.origin? && upstream?(path) && !tagged_versions(path).empty?
+end
+
+# The peeled line where there is one, an annotated tag naming a tag object and
+# the commit being what a checkout gets.  ls-remote answers it only where the
+# pattern admits it, which is why nothing here queries a refname exactly.
+def remote_tag_commit(path, tag)
+  remote_refs(path)["refs/tags/#{tag}^{}"] || remote_refs(path)["refs/tags/#{tag}"]
+end
+
+# A push moves commits and does not move tags which already exist, so a rewritten
+# history leaves the remote naming commits it has abandoned while every local
+# check reads clean.  stateful was in exactly that state on 20260913, its
+# published 2.3.5 tagged here at one commit and on the remote at another.
+def remote_tag_findings(path)
+  return [] unless switches.origin?
+  return [] unless upstream?(path)
+  ours = tagged_versions(path)
+  # Having no tags is nothing to compare rather than a remote which declined to
+  # answer, and ls-remote says nothing in both cases.  Asked the other way round,
+  # thirty repositories reported a remote which had answered perfectly well.
+  return [] if ours.empty?
+  return [['origin: nothing answered, so what a checkout would get is unknown', OLDER]] if remote_refs(path).empty?
+  findings = []
+  ours.sort_by{|version| Gem::Version.new(version)}.reverse.first(REMOTE_TAGS).each do |version|
+    tag = "v#{version}"
+    local = git(path, 'rev-parse', "#{tag}^{commit}").strip
+    remote = remote_tag_commit(path, tag)
+    next if remote.nil?
+    next if remote == local
+    findings << ["origin: #{tag} names #{remote[0, 7]} and this clone's names #{local[0, 7]}", CURRENT]
+  end
+  findings
+end
+
 def unpushed(path)
   return nil unless upstream?(path)
   git(path, 'rev-list', '--count', '@{u}..').strip.to_i
@@ -173,6 +247,7 @@ def findings(path)
   count = uncommitted(path)
   findings << ["#{count} uncommitted", WORKING] if count > 0
   findings.concat(untagged_findings(path))
+  findings.concat(remote_tag_findings(path))
   ahead = unpushed(path)
   if ahead.nil?
     findings << ['no upstream', OLDER]
@@ -236,6 +311,7 @@ end
 def main
   switches
   reported = []
+  prefetch_remote_refs(repository_paths.select{|path| asks_origin?(path)})
   repository_paths.each do |path|
     found = findings(path)
     reported << [path, found] unless found.empty?

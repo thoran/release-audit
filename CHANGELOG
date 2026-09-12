@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 20260913
+
+0.3.0: + --origin, which asks whether the tags origin holds name the commits ours do.
+
+1. + bin/release-audit: remote_tag_findings(), read_remote_refs() and remote_tag_commit(). A push moves commits and leaves tags where they are, so a rewritten history leaves the remote naming commits it has abandoned while every local check reads clean. Behind a switch because it is the only thing here which touches the network.
+2. The peeled `^{}` line is preferred where there is one: an annotated tag names a tag object and the commit beneath it is what a checkout gets, so comparing the tag object against a commit reports every annotated tag as diverged.
+3. Only the newest REMOTE_TAGS versions are asked about. A repository with 77 tags would otherwise report on all of them, and a tag which has stood for years is not what a rewrite abandons.
+4. + bin/release-audit: prefetch_remote_refs(), which makes the calls together rather than one after another. Sequentially the run took 5m17s against 12.9s for the whole of the rest of it; sixteen threads bring it to 43.7s, with the findings identical. Each call is spent waiting, and Ruby gives up the lock for the duration of a subprocess.
+5. Having no tags is nothing to compare rather than a remote which declined to answer, and ls-remote says nothing in both cases. Asked the other way round first, thirty repositories reported a remote which had answered perfectly well.
+6. Run over the estate it found four stale tags across three repositories: duration.rb v0.8.0, git-import-all v0.14.2 and v0.14.3, and imap v0.4.1. None is visible from a clone.
+7. ~ bin/release-audit: /0.2.1/0.3.0/, and the date.
+
 ## 20260911
 
 0.2.1: ~ the count: three standings, so that work in progress is not counted as a release left half done.
