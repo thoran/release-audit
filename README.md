@@ -43,6 +43,10 @@ $ cat ~/.config/release-audit/config.json
 
 Only repositories with something outstanding are listed. `--all` lists every one.
 
+Rows are ordered by what can be acted upon: a release which stopped between being
+made and being delivered first, then a tree with work in it, then what is only
+historical, and within each by name.
+
 ### Options
 
 | | |
@@ -80,7 +84,8 @@ are, and `--follow-tags` carries only what is reachable from what is pushed.
 ## What it does not report yet
 
 Whether a version is published. That is the one remaining stage, described in
-section 4 of `missing-tools-note.md`.
+section 4 of `missing-tools-note.md`, and `ROADMAP.md` asks whether it belongs
+here or in a sibling.
 
 ## Exit status
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # release-audit
 
-# 20260913
-# 0.4.0
+# 20260915
+# 0.5.0
 
 gem 'switches.rb'
 
@@ -276,6 +276,19 @@ def standing(findings)
   OLDER
 end
 
+# CURRENT first, that being the only standing which can be acted upon today;
+# OLDER after WORKING, being years old by definition; and under --all, a
+# repository with nothing outstanding last of all.  Named rather than an index
+# into a constant, WORKING sorting after the array would have to be declared.
+def standing_rank(findings)
+  return 3 if findings.empty?
+  case standing(findings)
+    when CURRENT then 0
+    when WORKING then 1
+    else 2
+  end
+end
+
 def committed(path)
   count = uncommitted(path)
   return 'clean' if count.zero?
@@ -329,6 +342,7 @@ def main
     reported << [path, found] unless found.empty?
   end
   listable = switches.all? ? repository_paths.collect{|path| [path, findings(path)]} : reported
+  listable = listable.sort_by{|path, found| [standing_rank(found), File.basename(path)]}
   width = name_width(listable.collect(&:first))
   headings(width) unless listable.empty?
   listable.each{|path, found| report(path, found, width)}
