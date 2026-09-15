@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 20260915
+
+0.5.0: Order the listing by standing, and + ROADMAP.md for the questions which are not jobs.
+
+1. + bin/release-audit: standing_rank(), the rows ordered CURRENT, WORKING, OLDER and within each by name. Alphabetical put the two tags disagreeing with origin, which no push corrects, wherever the alphabet did.
+2. + ROADMAP.md: whether there is a machine-readable output, whether the checked-out branch is the right scope, where publication belongs, and where the list of repositories comes from. The ordering was the fifth and is done here.
+3. ~ README.md: the ordering, and "What it does not report yet" names ROADMAP.md.
+4. ~ bin/release-audit: /0.4.0/0.5.0/, and the date.
+
+
 ## 20260913
 
 0.4.0: + the other way a tag and a remote disagree: origin not having it at all.
