@@ -83,9 +83,8 @@ are, and `--follow-tags` carries only what is reachable from what is pushed.
 
 ## What it does not report yet
 
-Whether a version is published. That is the one remaining stage, described in
-section 4 of `missing-tools-note.md`, and `ROADMAP.md` asks whether it belongs
-here or in a sibling.
+Whether a version is published. That is the one remaining stage, and `ROADMAP.md`
+asks whether it belongs here.
 
 ## Exit status
 

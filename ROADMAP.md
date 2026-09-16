@@ -37,11 +37,10 @@ checkpoints and parked work, which are not releases and would be noise. What is
 unsettled is whether the default branch being stale is this tool's business, given
 that it is the branch anyone cloning receives.
 
-### Whether publication belongs here or in a sibling
+### Whether publication belongs here
 
-The fifth stage is not asked. `tap-audit`'s roadmap names Publication as one of
-four pieces and argues it is a sibling rather than a part, on the grounds that a
-tool which never speaks to a remote stays fast and reliable.
+The fifth stage is not asked. The argument against was that a tool which never
+speaks to a remote stays fast and reliable, and is wanted most when it is.
 
 `--origin` has since made that line less clean: this tool does speak to a remote,
 behind a switch, and the same reasoning would put a rubygems lookup behind the
@@ -50,10 +49,10 @@ same switch. Either the argument covers both or it covers neither.
 ### Where the list of repositories comes from
 
 A root is walked for `.git` directories, `ours?` filtering by the root commit's
-author. `tap-audit`'s roadmap records the tap failing as an index — fifteen
-repositories went unreported because they have no formula — and names this walk
-as the second consumer wanting the same thing.
+author. That is a proxy twice over: a grafted history reads as ours, and a
+repository begun before the habit of a first commit of one's own reads as someone
+else's.
 
-Two tools deriving the same list by different means is the argument for settling
-it once. Whether that is a shared piece, a configuration file, or leaving both as
-they are is open.
+Whether the list should instead be stated — a configuration naming the
+repositories, or a file each one carries — is open. The walk suits a directory of
+one's own work and suits nothing else.
