@@ -115,7 +115,10 @@ asks whether it belongs here.
 
 ## Exit status
 
-1 where anything was found, 0 where nothing was, so it can gate a release.
+1 where anything was found, 0 where nothing was, so it can gate a release, and 2
+where the fault is in how it was called: a path which names no repository, or a
+switch which does not exist. A gate reading 1 has found work; it has not been
+misused, which is why the two are not the same number.
 
 ## Contributing
 

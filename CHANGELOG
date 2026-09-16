@@ -2,6 +2,14 @@
 
 ## 20260916
 
+0.7.0: Tell a misuse from a finding, and require of each switch the argument it is named for.
+
+1. + bin/release-audit: MISUSE, exit 2 where the fault is in how it was called. Exit 1 had meant both a finding and a mistake, so a gate could not tell seven repositories needing attention from a mistyped path, which is the one thing the exit status is documented as being for. grep and diff both spell this 0, 1, 2 and the first two already agreed.
+2. ~ bin/release-audit: switches() rescues OptionParser::ParseError, which had reached the top as a backtrace and exit 1. The argument error is new here and could have been 2 alone, but then a misuse would exit 2 or 1 by which kind it was, and an unknown switch is the likelier mistake of the two.
+3. ~ bin/release-audit: --config, --root and --branch declared with optional!() rather than optional(), so each requires the argument it is named for. A bare --root had been legal and set nothing, falling through to the configured root and sweeping everything, which is not what anyone typing it alone meant. It is a misuse now, and reaches exit 2 by the rescue above.
+4. ~ README.md: Exit status, and the usage text, both of which promised 1 and 0 only.
+5. ~ bin/release-audit: /0.6.0/0.7.0/, and the date.
+
 0.6.0: Audit named repositories rather than those beneath the root.
 
 1. + bin/release-audit: repository_at(), named_paths() and list_all(). `--root` names the directory the repositories are *in*, so `--root .` from inside a repository globs bin, lib and test, finds no `.git` among them and answers "No repositories of ours beneath", which reads as the root being wrong when the root is fine. The only way to audit one was a directory holding a single symlink.

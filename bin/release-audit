@@ -2,7 +2,7 @@
 # release-audit
 
 # 20260916
-# 0.6.0
+# 0.7.0
 
 gem 'switches.rb'
 
@@ -16,6 +16,7 @@ COPY_SUFFIXES = %w{.bak .old .orig}
 CURRENT = :current
 LISTED_VERSIONS = 6
 MINIMUM_NAME_WIDTH = 24
+MISUSE = 2
 OLDER = :older
 OWNER = 'thoran'
 REMOTE_THREADS = 16
@@ -48,14 +49,15 @@ def usage
   puts "leaves tags where they are, and --follow-tags carries only what is reachable."
   puts "Whether a version is published is the one remaining column and is not asked."
   puts
-  puts "Exits 1 where anything was found, so it can gate a release."
+  puts "Exits 1 where anything was found and 0 where nothing was, so it can gate a release,"
+  puts "and #{MISUSE} where the fault is in how it was called, which is not a finding."
 end
 
 def switches
   @switches ||= Switches.new do |s|
-    s.optional(:c, :config){'Where the configuration is'}
-    s.optional(:r, :root){'Where the repositories are'}
-    s.optional(:B, :branch, default: DEFAULT_BRANCH){'The branch each repository releases from'}
+    s.optional!(:c, :config){'Where the configuration is'}
+    s.optional!(:r, :root){'Where the repositories are'}
+    s.optional!(:B, :branch, default: DEFAULT_BRANCH){'The branch each repository releases from'}
     s.boolean(:a, :all){'List every repository'}
     s.boolean(:n, :name){'Head the repository column'}
     s.boolean(:o, :origin){'Ask origin whether its tags name what ours do'}
@@ -64,6 +66,10 @@ def switches
       exit
     end
   end
+rescue OptionParser::ParseError => e
+  $stderr.puts "release-audit: #{e.message}."
+  usage
+  exit MISUSE
 end
 
 def config_filepath
@@ -118,7 +124,7 @@ def repository_at(argument)
     message = "release-audit: not a repository: #{path}."
     message += " For the repositories beneath it, use --root #{argument}." if File.directory?(path)
     $stderr.puts message
-    exit 1
+    exit MISUSE
   end
   path
 end
