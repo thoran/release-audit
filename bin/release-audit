@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # release-audit
 
-# 20260916
-# 0.7.0
+# 20260917
+# 0.8.0
 
 gem 'switches.rb'
 
@@ -20,6 +20,9 @@ MISUSE = 2
 OLDER = :older
 OWNER = 'thoran'
 REMOTE_THREADS = 16
+SIGNATURE_BLOCK = 'BEGIN PGP SIGNATURE'
+TAG_FORMAT = '%(refname:short)|%(objecttype)|%(contents)%0a==END=='
+TAG_SEPARATOR = "\n==END==\n"
 VERSION_SUBJECT = /\A(\d+\.\d+\.\d+):/
 VERSION_TAG = /\Av(\d+\.\d+\.\d+)\z/
 WORKING = :working
@@ -43,7 +46,8 @@ def usage
   puts "which is wanted. Relative and absolute both, and more than one may be named."
   puts
   puts "Whether the tree is committed, which versions the repository claims and has"
-  puts "tagged, and whether the branch is pushed, none of which touches the network."
+  puts "tagged, whether those tags are signed, and whether the branch is pushed, none"
+  puts "of which touches the network."
   puts "With --origin, whether origin has our tags and whether the ones it has name"
   puts "the commits ours do.  A push corrects neither on its own: it moves commits and"
   puts "leaves tags where they are, and --follow-tags carries only what is reachable."
@@ -282,6 +286,39 @@ def untagged_findings(path)
   findings
 end
 
+# One call rather than `git tag -v` per tag, which is a subprocess and a gpg
+# invocation each: 879 tags across the estate.  %(contents) is the tag object's
+# message, and a signed tag carries the armoured block within it, so the question
+# is answered from what for-each-ref already prints.  A lightweight tag is a
+# ref naming a commit and has no object to carry either a message or a signature.
+#
+# The format is quoted because git() interpolates into backticks: %(refname:short)
+# reaches the shell as a subshell and fails outright, which is what it did here on
+# the first run and in the branch survey of 20260913 before it.
+def tag_signatures(path)
+  git(path, 'for-each-ref', "--format='#{TAG_FORMAT}'", 'refs/tags').split(TAG_SEPARATOR).each_with_object([[], []]) do |entry, (unsigned, lightweight)|
+    name, type, body = entry.split('|', 3)
+    next if name.to_s.strip.empty?
+    next unless name.strip =~ VERSION_TAG
+    next lightweight << name.strip if type == 'commit'
+    unsigned << name.strip unless body.to_s.include?(SIGNATURE_BLOCK)
+  end
+end
+
+# OLDER, not CURRENT: an unsigned tag is a release delivered to a lower standard
+# rather than one which stopped half way, and 745 of the estate's 879 tags are in
+# that state, every one of them predating the convention.  Saying it once per
+# repository keeps it from drowning the column it shares.
+def signature_findings(path)
+  unsigned, lightweight = tag_signatures(path)
+  findings = []
+  findings << ["#{lightweight.size} lightweight: #{listed(lightweight)}", OLDER] unless lightweight.empty?
+  return findings if unsigned.empty?
+  total = tagged_versions(path).size
+  findings << ["#{unsigned.size} of #{total} #{total == 1 ? 'tag' : 'tags'} unsigned", OLDER]
+  findings
+end
+
 # Three standings, because the counts conflate otherwise.  CURRENT is a release
 # which stopped between being made and being delivered: a latest version with no
 # tag, or commits the remote has not seen.  WORKING is a tree with changes in it,
@@ -294,6 +331,7 @@ def findings(path)
   count = uncommitted(path)
   findings << ["#{count} uncommitted", WORKING] if count > 0
   findings.concat(untagged_findings(path))
+  findings.concat(signature_findings(path))
   findings.concat(remote_tag_findings(path))
   ahead = unpushed(path)
   if ahead.nil?

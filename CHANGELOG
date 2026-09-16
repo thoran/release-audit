@@ -1,5 +1,17 @@
 # release-audit/CHANGELOG
 
+## 20260917
+
+0.8.0: + version tag signing check
+
+1. + bin/release-audit: tag_signatures() and signature_findings(). 745 of the estate's 879 tags carry no signature and 43 of 51 repositories hold at least one, none of it visible before now.
+2. + bin/release-audit: TAG_FORMAT, TAG_SEPARATOR and SIGNATURE_BLOCK. One for-each-ref per repository rather than `git tag -v` per tag, which is a subprocess and a gpg run each; %(contents) carries the armoured block, so the question is answered from what is already printed. The whole run costs about 2s more.
+3. + bin/release-audit: the lightweight case, a tag which is a bare ref and so carries no message either. It fires only where such a tag names a version, which the ones to hand do not.
+4. ~ bin/release-audit: the format argument is quoted. git() interpolates into backticks, so %(refname:short) reached the shell as a subshell and failed outright on the first run, as it did in the branch survey of 20260913.
+5. ~ README.md: the two findings.
+6. ~ bin/release-audit: /0.7.0/0.8.0/, and the date.
+
+
 ## 20260916
 
 0.7.0: Tell a misuse from a finding, and require of each switch the argument it is named for.

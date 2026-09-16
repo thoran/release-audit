@@ -92,6 +92,8 @@ historical, and within each by name.
 | --- | --- |
 | `uncommitted` | the working tree has changes which no commit holds |
 | `untagged` | a version the repository claims, with no tag naming it |
+| `tags unsigned` | version tags carrying no signature, counted against the whole |
+| `lightweight` | a version tag which is a bare ref, so it carries no message either |
 | `unpushed` | commits on the release branch which the remote does not have |
 | `no upstream` | the branch tracks nothing, so pushed cannot be answered |
 
