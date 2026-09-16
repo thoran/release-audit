@@ -1,4 +1,17 @@
-# CHANGELOG
+# release-audit/CHANGELOG
+
+## 20260916
+
+0.6.0: Audit named repositories rather than those beneath the root.
+
+1. + bin/release-audit: repository_at(), named_paths() and list_all(). `--root` names the directory the repositories are *in*, so `--root .` from inside a repository globs bin, lib and test, finds no `.git` among them and answers "No repositories of ours beneath", which reads as the root being wrong when the root is fine. The only way to audit one was a directory holding a single symlink.
+2. + bin/release-audit: an argument is a directory holding a repository, relative or absolute, `~` expanded, `.` being the one you are in. More than one may be named and duplicates collapse. A bare name works where it is a path, which is to say from the root, and reports where it looked when it is not.
+3. + bin/release-audit: a named repository skips copy?() and ours?(), which exist to quieten discovery and have nothing to filter when the repository has been named. A fork is reported rather than silently dropped, on the ground that pointing at one is asking for it.
+4. + bin/release-audit: naming any repository implies --all, since that is already saying which is wanted, and without it the common case of a clean one prints an empty table.
+5. + bin/release-audit: a path which is a directory but not a repository is answered with `--root` naming it, which is what was meant. A path which is not a directory is not, there being nothing there to be a root of.
+6. ~ README.md: + the argument under Usage. It is not an option, so the Options table is left alone.
+7. ~ README.md: Installation, + 1b symlinked and 1c copied, where 1b had been the copy alone. A symlink makes the command on the path the checkout, which cannot drift from it; a copy is two things kept the same by hand, and outlives the checkout, which a symlink does not. Three ways of installing had been two headings, and the letters are what this README uses for alternatives. Homebrew stays 1a, for anyone wanting a version they did not check out. The checkout blocks carry the $ prompt the rest of the README uses and which 1b had gone without; the one unprefixed line left is what cat answers with, being output rather than a command.
+8. ~ bin/release-audit: /0.5.0/0.6.0/, and the date.
 
 ## 20260915
 

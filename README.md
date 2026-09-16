@@ -19,13 +19,26 @@ $ brew tap thoran/tap
 $ brew install thoran/tap/release-audit
 ```
 
-### 1b. Manually
+### 1b. From a checkout, symlinked
 
 ```shell
-git clone https://github.com/thoran/release-audit
-cp ./release-audit/bin/release-audit to your preferred executable path
-chmod +x /path/to/release-audit
+$ git clone https://github.com/thoran/release-audit
+$ ln -s "$PWD/release-audit/bin/release-audit" ~/bin/release-audit
 ```
+
+The command on your path is then the checkout itself: a pull updates it, and there
+is no second copy to drift from the repository.
+
+### 1c. From a checkout, copied
+
+```shell
+$ git clone https://github.com/thoran/release-audit
+$ cp ./release-audit/bin/release-audit /path/to/your/executables
+$ chmod +x /path/to/your/executables/release-audit
+```
+
+The command and the repository are then two things, to be kept the same by hand.
+Worth it where the command should outlive the checkout, which a symlink does not.
 
 ## Usage
 
@@ -41,7 +54,21 @@ $ cat ~/.config/release-audit/config.json
 {"root": "~/code/scm/github.com/thoran"}
 ```
 
-Only repositories with something outstanding are listed. `--all` lists every one.
+A directory naming a repository audits that one instead of those beneath the root.
+Relative and absolute both, `~` expanded, `.` being the one you are in, and more
+than one may be named:
+
+```shell
+$ cd ~/code/scm/github.com/thoran/coinmarketcap && release-audit .
+$ release-audit ~/code/scm/github.com/thoran/imap
+$ cd ~/code/scm/github.com/thoran && release-audit coinmarketcap imap
+```
+
+`--root` names the directory the repositories are *in*, which is why `--root .`
+from inside a repository finds none.
+
+Only repositories with something outstanding are listed. `--all` lists every one,
+and naming one implies it, since that is already saying which is wanted.
 
 Rows are ordered by what can be acted upon: a release which stopped between being
 made and being delivered first, then a tree with work in it, then what is only

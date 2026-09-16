@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # release-audit
 
-# 20260915
-# 0.5.0
+# 20260916
+# 0.6.0
 
 gem 'switches.rb'
 
@@ -26,7 +26,7 @@ WORKING = :working
 def usage
   puts "release-audit - Report which repositories have a release left half done."
   puts
-  puts "Usage: release-audit [options]"
+  puts "Usage: release-audit [options] [DIRECTORY ...]"
   puts
   puts "Options:"
   puts "  -c, --config FILE   Where the configuration is (default: #{DEFAULT_CONFIG_FILEPATH})"
@@ -36,6 +36,10 @@ def usage
   puts "  -n, --name          Head the repository column, which is otherwise left unheaded"
   puts "  -o, --origin        Ask origin whether its tags name what ours do (one call each)"
   puts "  -h, --help          Show this help"
+  puts
+  puts "A directory naming a repository audits that one instead of those beneath the root,"
+  puts ". being the one you are in, and implies --all, since naming one is already saying"
+  puts "which is wanted. Relative and absolute both, and more than one may be named."
   puts
   puts "Whether the tree is committed, which versions the repository claims and has"
   puts "tagged, and whether the branch is pushed, none of which touches the network."
@@ -106,10 +110,35 @@ def ours?(path)
   git(path, 'log', '-1', '--format=%ae', root_commit).include?(OWNER)
 end
 
-def repository_paths
-  @repository_paths ||= Dir[File.join(root, '*')].sort.select do |path|
+# A named path is not discovery, so copy? and ours? have nothing to filter: the
+# repositories are the ones asked for.
+def repository_at(argument)
+  path = File.expand_path(argument)
+  unless File.directory?(File.join(path, '.git'))
+    message = "release-audit: not a repository: #{path}."
+    message += " For the repositories beneath it, use --root #{argument}." if File.directory?(path)
+    $stderr.puts message
+    exit 1
+  end
+  path
+end
+
+def named_paths
+  @named_paths ||= ARGV.collect{|argument| repository_at(argument)}.uniq
+end
+
+def discovered_paths
+  Dir[File.join(root, '*')].sort.select do |path|
     File.directory?(File.join(path, '.git')) && !copy?(path) && ours?(path)
   end
+end
+
+def repository_paths
+  @repository_paths ||= ARGV.empty? ? discovered_paths : named_paths
+end
+
+def list_all?
+  switches.all? || !ARGV.empty?
 end
 
 def uncommitted(path)
@@ -341,7 +370,7 @@ def main
     found = findings(path)
     reported << [path, found] unless found.empty?
   end
-  listable = switches.all? ? repository_paths.collect{|path| [path, findings(path)]} : reported
+  listable = list_all? ? repository_paths.collect{|path| [path, findings(path)]} : reported
   listable = listable.sort_by{|path, found| [standing_rank(found), File.basename(path)]}
   width = name_width(listable.collect(&:first))
   headings(width) unless listable.empty?
