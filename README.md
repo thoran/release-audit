@@ -51,8 +51,12 @@ so that the common case takes no arguments at all:
 
 ```shell
 $ cat ~/.config/release-audit/config.json
-{"root": "~/code/scm/github.com/thoran"}
+{"root": "~/code/scm/github.com/thoran", "owner": "thoran"}
 ```
+
+`owner` is who "ours" means: a repository counts as yours where its root commit's
+author matches, which is how a fork sitting beneath the root is left out. It
+defaults to `git config user.name`, so it usually needs no saying at all.
 
 A directory naming a repository audits that one instead of those beneath the root.
 Relative and absolute both, `~` expanded, `.` being the one you are in, and more
@@ -84,6 +88,7 @@ historical, and within each by name.
 | `-a, --all` | List every repository, not only those with something outstanding |
 | `-n, --name` | Head the repository column, which is otherwise left unheaded |
 | `-o, --origin` | Ask origin whether its tags name what ours do (one call each) |
+| `-O, --owner NAME` | Whose repositories are ours (default: `git config user.name`) |
 | `-h, --help` | Show this help |
 
 ## What it reports

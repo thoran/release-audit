@@ -2,6 +2,13 @@
 
 ## 20260917
 
+0.9.0: - OWNER
+
+1. + bin/release-audit: owner() and git_identity(), and -O, --owner. The switch, then the configuration, then git config user.name, which is the order --root already takes.
+2. + bin/release-audit: an empty owner is refused rather than obeyed. "".include?('') is true, so it would have made every repository ours, and the run before ours?() existed reported 171.
+3. ~ README.md: the switch, and owner in the configuration example.
+4. ~ bin/release-audit: /0.8.0/0.9.0/.
+
 0.8.0: + version tag signing check
 
 1. + bin/release-audit: tag_signatures() and signature_findings(). 745 of the estate's 879 tags carry no signature and 43 of 51 repositories hold at least one, none of it visible before now.
